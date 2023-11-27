@@ -6,11 +6,15 @@ import random
 import numpy as np
 from collections import namedtuple
 
+#dt 用于求微分，类似于单片机上的处理效果，假设是10k
+dt = 1e-4
+
+
 #Create the environment for SMC
 import numpy as np
 
 class SMCenv:
-    def __init__(self,desired_state):
+    def __init__(self):
         # Define constants based on the servo valve model
         # These should be defined based on the mathematical model provided in the paper
         self.mass = 0.1  # Total mass of the moving parts
@@ -20,7 +24,7 @@ class SMCenv:
         self.valve_spring_preload = 6.5e-3  # Preload of the spring
         self.initial_spool_position = 0  # Initial position of the spool
         self.force_coefficient = 40  # Coefficient relating current to force for the solenoid
-        self.desired_state = desired_state  #xr,the target position
+        self.position = 0 #position at present
 
         # Define the state space as per the model in the paper
         self.state = np.array([self.initial_spool_position, 0])  # Initial state
@@ -32,9 +36,10 @@ class SMCenv:
     def reset(self):
         # Reset the environment state back to initial conditions
         self.state = np.array([self.initial_spool_position, 0])
+        self.position = 0
         return self.state
 
-    def step(self, action):
+    def step(self, action,desired_state):
         # Apply the action to the environment and update the state
         # The action would be the control input to the valve
 
@@ -43,6 +48,15 @@ class SMCenv:
         # Update the disturbance observer and sliding mode controller as per the equations (10), (11), (12)...
 
         # Example placeholder for new state calculation, this should be replaced by actual model equations
+        x_1 = self.state[0]
+        x_2 = self.state[1]
+        xr_1 = desired_state
+        xr_2 = desired_state / dt
+        
+        
+        new_x_2 = x_1/dt
+        u = x_2/dt
+        
         new_position = self.state[0] + action - self.damping_coefficient*self.state[1]
         new_velocity = self.state[1] + action/self.mass
 
@@ -119,6 +133,7 @@ num_episodes = 100
 max_steps = 200  # 每个episode的最大步数
 batch_size = 64  # 从经验回放中采样的批量大小
 gamma = 0.6  #damping coefficient 0-1之前使时间越晚，奖励越少
+total_step = 0
 
 # 经验回放缓冲区
 class ReplayBuffer:
@@ -148,6 +163,12 @@ Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state'
 for episode in range(num_episodes):
     state = env.reset()
     episode_reward = 0
+    total_step = total_step + 1
+    
+    if total_step <= (num_episodes//2) :
+        desired_state = 0
+    else:
+        desired_state = 1e-3
 
     for step in range(max_steps):
         # 生成动作
