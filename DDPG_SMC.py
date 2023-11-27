@@ -1,13 +1,75 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 import random
 import numpy as np
-
+from collections import namedtuple
 
 #Create the environment for SMC
+import numpy as np
+
 class SMCenv:
-    pass
+    def __init__(self,desired_state):
+        # Define constants based on the servo valve model
+        # These should be defined based on the mathematical model provided in the paper
+        self.mass = 0.1  # Total mass of the moving parts
+        self.damping_coefficient = 30  # Damping coefficient
+        self.spring_stiffness = 1e4  # Spring stiffness
+        self.pressure_system = 0  # System pressure
+        self.valve_spring_preload = 6.5e-3  # Preload of the spring
+        self.initial_spool_position = 0  # Initial position of the spool
+        self.force_coefficient = 40  # Coefficient relating current to force for the solenoid
+        self.desired_state = desired_state  #xr,the target position
+
+        # Define the state space as per the model in the paper
+        self.state = np.array([self.initial_spool_position, 0])  # Initial state
+
+        # Define bounds for uncertainty and disturbance as per the paper's model
+        self.disturbance_lower_bound = -10
+        self.disturbance_upper_bound = 10
+
+    def reset(self):
+        # Reset the environment state back to initial conditions
+        self.state = np.array([self.initial_spool_position, 0])
+        return self.state
+
+    def step(self, action):
+        # Apply the action to the environment and update the state
+        # The action would be the control input to the valve
+
+        # Implement the valve dynamics here based on the equations from the paper
+        # Calculate the new state based on the current state and the action
+        # Update the disturbance observer and sliding mode controller as per the equations (10), (11), (12)...
+
+        # Example placeholder for new state calculation, this should be replaced by actual model equations
+        new_position = self.state[0] + action - self.damping_coefficient*self.state[1]
+        new_velocity = self.state[1] + action/self.mass
+
+        # Update state
+        self.state = np.array([new_position, new_velocity])
+
+        # Calculate reward (or use any other metrics as per the research goals)
+        reward = -np.square(self.state - self.desired_state).sum()  # Example placeholder
+
+        # Check if episode is done
+        done = np.abs(self.state[0] - self.desired_state[0]) < self.tolerance  # Example placeholder
+
+        return self.state, reward, done, {}
+
+    # Additional methods to implement the mathematical model of the valve as per the paper
+    # Including the disturbance observer and sliding mode controller
+    # ...
+
+# Usage
+env = SMCenv()
+state = env.reset()
+for _ in range(1000):  # Example number of steps
+    action = np.random.random(1)  # Example action, replace with actual control algorithm
+    next_state, reward, done, _ = env.step(action)
+    if done:
+        break
+
 
 env = SMCenv
 
@@ -56,6 +118,7 @@ critic_optimizer = optim.Adam(critic.parameters(), lr=1e-3)
 num_episodes = 100
 max_steps = 200  # 每个episode的最大步数
 batch_size = 64  # 从经验回放中采样的批量大小
+gamma = 0.6  #damping coefficient 0-1之前使时间越晚，奖励越少
 
 # 经验回放缓冲区
 class ReplayBuffer:
@@ -78,6 +141,8 @@ class ReplayBuffer:
 
 # 初始化经验回放缓冲区
 replay_buffer = ReplayBuffer(capacity=10000)
+# 定义Transition具名元组，它有五个字段
+Transition = namedtuple('Transition', ('state', 'action', 'reward', 'next_state', 'done'))
 
 #training circle    
 for episode in range(num_episodes):
