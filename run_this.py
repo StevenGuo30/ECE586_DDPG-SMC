@@ -44,7 +44,7 @@ agent = DDPG(n_states = n_states,  # 状态数
 return_list = []  # 记录每个回合的return
 mean_return_list = []  # 记录每个回合的return均值
 
-for i in tqdm(range(10)):  # 迭代10回合
+for i in tqdm(range(100)):  # 迭代10回合
     episode_return = 0  # 累计每条链上的reward
     state = env.reset()[0]  # 初始时的状态
     done = False  # 回合结束标记
